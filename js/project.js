@@ -1,134 +1,134 @@
 /* ==========================================================================
-   DANIELS® — project detail template (project.html?p=<slug>)
+   DANIELS® — project page (project.html?p=<slug>)
+   Re-rendered when the language changes (ds:lang).
    ========================================================================== */
 (function () {
   "use strict";
 
-  var SITE = window.SITE || {};
   var DS = window.DS;
-  var esc = DS.esc;
-  var list = SITE.projects || [];
+  var esc = DS.esc, t = DS.t, ui = DS.ui;
+  var list = DS.projects();
   var root = document.querySelector("[data-case]");
 
   var slug = new URLSearchParams(window.location.search).get("p");
   var index = -1;
   for (var i = 0; i < list.length; i++) if (list[i].slug === slug) { index = i; break; }
 
-  document.documentElement.classList.add("js");
-  DS.renderFooter("index.html");
-  DS.initHeader();
-
-  if (index < 0) {
-    document.title = "Project not found — DANIELS®";
-    root.innerHTML =
-      '<div class="container case__empty">' +
-        '<p class="eyebrow">404</p>' +
-        '<h1 class="case__title">This project could not be found.</h1>' +
-        '<p><a class="textlink" href="index.html#work">← Back to selected works</a></p>' +
-      "</div>";
-    return;
+  function setMeta(sel, value) {
+    var el = document.querySelector(sel);
+    if (el && value) el.setAttribute("content", value);
   }
 
-  var p = list[index];
-  var next = list.length > 1 ? list[(index + 1) % list.length] : null;
-  var nextIndex = (index + 1) % list.length;
-  var meta = [DS.titleCase(p.category), p.year].filter(Boolean).join(" · ");
-
-  document.title = p.title + " — DANIELS®";
-  setMeta("description", p.overview || (p.title + " — " + meta + ". A project by Daniels."));
-  setMeta("og:title", p.title + " — DANIELS®", true);
-  if (p.poster) setMeta("og:image", p.poster, true);
-
-  function setMeta(name, value, prop) {
-    var el = document.querySelector('meta[' + (prop ? "property" : "name") + '="' + name + '"]');
-    if (el) el.setAttribute("content", value);
-  }
-
-  /* ---------- video embed ---------- */
-  function videoEmbed(v) {
+  function videoEmbed(p) {
+    var v = p.video;
     if (!v) return "";
-    var inner = "";
-    var title = esc(p.title) + " — vídeo";
+    var title = esc(t(p.title));
+    var inner = "", portrait = false;
     if (v.type === "youtube" && v.id) {
       inner = '<iframe src="https://www.youtube-nocookie.com/embed/' + esc(v.id) + '?rel=0" title="' + title + '" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>';
     } else if (v.type === "vimeo" && v.id) {
       inner = '<iframe src="https://player.vimeo.com/video/' + esc(v.id) + '?dnt=1&title=0&byline=0&portrait=0" title="' + title + '" loading="lazy" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>';
     } else if (v.type === "instagram" && v.id) {
-      inner = '<div class="case__instagram-embed">' +
-                '<iframe src="https://www.instagram.com/reel/' + esc(v.id) + '/embed/" title="' + title + '" width="400" height="700" frameborder="0" scrolling="no" allowtransparency="true" loading="lazy"></iframe>' +
-              '</div>';
+      portrait = true;
+      inner = '<iframe src="https://www.instagram.com/reel/' + esc(v.id) + '/embed/" title="' + title + '" scrolling="no" loading="lazy"></iframe>';
     } else if (v.type === "file" && v.src) {
       inner = '<video src="' + esc(v.src) + '" controls playsinline preload="metadata"></video>';
     }
-    return inner ? '<section class="case__video" aria-label="Filme"><div class="container"><div class="case__video-frame' + (v.type === "instagram" ? ' case__video-frame--portrait' : '') + '">' + inner + "</div></div></section>" : "";
+    if (!inner) return "";
+    return '<section class="case__video" id="watch" aria-label="' + esc(ui("pj.watch")) + '"><div class="container">' +
+      '<h2 class="case__section-k">' + esc(ui("pj.watch")) + "</h2>" +
+      '<div class="' + (portrait ? "frame-portrait" : "frame16") + '">' + inner + "</div>" +
+    "</div></section>";
   }
 
-  /* ---------- stills ---------- */
-  function stills() {
+  function stills(p) {
     var s = p.stills || [];
-    var items;
-    if (s.length) {
-      items = s.map(function (st, i) {
-        return '<figure class="still' + (i === 0 ? " still--lead" : "") + '"><img src="' + esc(st.src) + '" alt="' + esc(st.alt || p.title + " — still " + (i + 1)) + '" loading="lazy" decoding="async">' +
-               (st.caption ? "<figcaption>" + esc(st.caption) + "</figcaption>" : "") + "</figure>";
-      }).join("");
-    } else if (p.sample) {
-      items = [1, 2, 3].map(function (n) {
-        return '<figure class="still' + (n === 1 ? " still--lead" : "") + '"><span class="still-ph" role="img" aria-label="Still placeholder ' + n + '"><span>Still ' + DS.pad(n) + " — to be supplied</span></span></figure>";
-      }).join("");
-    } else {
-      return "";
-    }
-    return '<section class="case__stills" aria-labelledby="stills-title"><div class="container">' +
-             '<h2 class="eyebrow case__section-k" id="stills-title">Stills</h2>' +
-             '<div class="stills">' + items + "</div>" +
-           "</div></section>";
+    var body = s.length
+      ? '<div class="stills">' + s.map(function (st, k) {
+          return '<figure class="still' + (k === 0 && s.length > 2 ? " still--lead" : "") + '"><img src="' + esc(st.src) + '" alt="' + esc(t(st.alt) || t(p.title) + " — still " + (k + 1)) + '" loading="lazy" decoding="async">' +
+            (t(st.caption) ? "<figcaption>" + esc(t(st.caption)) + "</figcaption>" : "") + "</figure>";
+        }).join("") + "</div>"
+      : '<div class="still-soon"><span class="soon">' + esc(ui("pj.stills_soon")) + "</span></div>";
+    return '<section class="case__stills" aria-label="' + esc(ui("pj.stills")) + '"><div class="container">' +
+      '<h2 class="case__section-k">' + esc(ui("pj.stills")) + "</h2>" + body +
+    "</div></section>";
   }
 
-  /* ---------- credits ---------- */
-  function credits() {
+  function billing(p) {
     var c = p.credits || [];
-    if (!c.length) {
-      return p.sample ? '<div class="case__block"><h2 class="case__k">Credits</h2><p class="pending">To be added</p></div>' : "";
-    }
-    return '<div class="case__block"><h2 class="case__k">Credits</h2><dl class="credits">' +
-      c.map(function (x) { return "<div><dt>" + esc(x.role) + "</dt><dd>" + esc(x.name) + "</dd></div>"; }).join("") +
-      "</dl></div>";
+    if (!c.length) return "";
+    return '<div class="case__billing"><p class="billing">' +
+      c.map(function (x) { return "<span><small>" + esc(t(x.role)) + "</small>" + esc(x.name) + "</span>"; }).join("") +
+      "<span><small>" + esc(ui("ft.produced")) + "</small>Arturus</span>" +
+    "</p></div>";
   }
 
-  var overview = p.overview ||
-    (p.sample ? "Sample entry. Replace this with a short overview of the project — the idea, the context, and what the work sets out to do." : "");
-  var role = p.role || (p.sample ? "To be confirmed — e.g. direction, editing, art direction." : "");
+  function block(k, v) {
+    return v ? '<div class="case__block"><h2 class="case__k">' + esc(k) + "</h2><div>" + v + "</div></div>" : "";
+  }
 
-  root.innerHTML =
-    '<article class="case__article">' +
-      '<div class="container case__intro">' +
-        '<a class="case__back textlink" href="index.html#work"><span aria-hidden="true">←</span> Selected works</a>' +
-        '<div class="case__grid">' +
-          '<figure class="case__poster poster">' + DS.poster(p, index, { eager: true }) + "</figure>" +
-          '<div class="case__info">' +
-            '<p class="eyebrow case__meta"><span>' + DS.pad(index + 1) + "</span><span>" + esc(meta) + "</span>" + (p.sample ? '<span class="tag">Sample</span>' : "") + "</p>" +
-            '<h1 class="case__title">' + esc(p.title) + "</h1>" +
-            (overview ? '<div class="case__block"><h2 class="case__k">Overview</h2><p class="case__overview">' + esc(overview) + "</p></div>" : "") +
-            (role ? '<div class="case__block"><h2 class="case__k">Role</h2><p>' + esc(role) + "</p></div>" : "") +
-            (p.instagramUrl ? '<div class="case__block"><h2 class="case__k">Instagram</h2><p>' + DS.link(p.instagramUrl, "Assistir no Instagram Reel") + "</p></div>" : "") +
-            credits() +
+  function render() {
+    if (index < 0) {
+      document.title = ui("pj.nf.title") + " — DANIELS®";
+      root.innerHTML =
+        '<div class="container case__empty">' +
+          '<p class="case__meta">404</p>' +
+          '<h1 class="case__title">' + esc(ui("pj.nf.title")) + "</h1>" +
+          '<p style="margin-top:2rem"><a class="textlink" href="index.html#work">← ' + esc(ui("pj.nf.back")) + "</a></p>" +
+        "</div>";
+      return;
+    }
+
+    var p = list[index];
+    var next = list.length > 1 ? list[(index + 1) % list.length] : null;
+    var title = t(p.title);
+    var meta = [DS.catLabel(p.category), p.year, p.duration ? p.duration + " min" : ""].filter(Boolean);
+
+    document.title = title + " — DANIELS®";
+    setMeta('meta[name="description"]', t(p.overview) || t(p.logline) || title);
+    setMeta('meta[property="og:title"]', title + " — DANIELS®");
+    DS.setTicket(p, true);
+
+    var watch = p.video ? '<p class="case__watch"><a class="btn btn--solid" href="#watch">▶ ' + esc(ui("pj.watch")) + "</a></p>" : "";
+    var ig = p.video && p.video.type === "instagram"
+      ? DS.link("https://www.instagram.com/reel/" + p.video.id + "/", ui("pj.watch_ig"))
+      : "";
+
+    root.innerHTML =
+      '<article class="case__article">' +
+        '<div class="container">' +
+          '<a class="case__back textlink" href="index.html#work"><span aria-hidden="true">←</span> ' + esc(ui("pj.back")) + "</a>" +
+          '<div class="case__grid">' +
+            '<figure class="case__poster poster">' + DS.poster(p, index, { eager: true }) + "</figure>" +
+            '<div class="case__info">' +
+              '<p class="case__meta"><span class="shead__n">' + DS.pad(index + 1) + "</span>" + meta.map(function (m) { return "<span>" + esc(m) + "</span>"; }).join("<span aria-hidden=\"true\">·</span>") + DS.sampleTag(p) + "</p>" +
+              '<h1 class="case__title">' + esc(title) + "</h1>" +
+              (t(p.logline) ? '<p class="case__logline">' + esc(t(p.logline)) + "</p>" : "") +
+              watch +
+              '<div class="case__blocks">' +
+                block(ui("pj.overview"), t(p.overview) ? "<p>" + esc(t(p.overview)) + "</p>" : '<span class="soon">' + esc(ui("soon")) + "</span>") +
+                block(ui("pj.role"), t(p.role) ? "<p>" + esc(t(p.role)) + "</p>" : "") +
+                block("Instagram", ig) +
+              "</div>" +
+              billing(p) +
+            "</div>" +
           "</div>" +
         "</div>" +
-      "</div>" +
-      videoEmbed(p.video) +
-      stills() +
-      (next ?
-        '<nav class="case__next" aria-label="Next project"><div class="container">' +
-          '<a class="next-link" href="project.html?p=' + encodeURIComponent(next.slug) + '">' +
-            '<span class="eyebrow">Next project</span>' +
-            '<span class="next-link__title">' + esc(next.title) + ' <span class="arrow" aria-hidden="true">→</span></span>' +
-            '<span class="next-link__meta">' + esc([DS.titleCase(next.category), next.year].filter(Boolean).join(" · ")) + "</span>" +
-            '<span class="next-link__poster poster" aria-hidden="true">' + DS.poster(next, nextIndex) + "</span>" +
-          "</a>" +
-        "</div></nav>" : "") +
-    "</article>";
+        videoEmbed(p) +
+        stills(p) +
+        (next
+          ? '<nav class="case__next" aria-label="' + esc(ui("pj.next")) + '"><div class="container">' +
+              '<a class="next-link" href="' + esc(DS.projectUrl(next)) + '">' +
+                '<span class="next-link__k">' + esc(ui("pj.next")) + "</span>" +
+                '<span class="next-link__title">' + esc(t(next.title)) + ' <span aria-hidden="true">→</span></span>' +
+                '<span class="next-link__poster poster" aria-hidden="true">' + DS.poster(next, (index + 1) % list.length) + "</span>" +
+              "</a>" +
+            "</div></nav>"
+          : "") +
+      "</article>";
+  }
 
+  render();
+  document.addEventListener("ds:lang", render);
   window.scrollTo(0, 0);
-  requestAnimationFrame(function () { document.body.classList.add("is-ready"); });
 })();

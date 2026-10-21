@@ -1,34 +1,54 @@
 /* ==========================================================================
-   DANIELS® — homepage
+   DANIELS® — homepage sections
+   Every render function is re-run when the language changes (ds:lang).
    ========================================================================== */
 (function () {
   "use strict";
 
   var SITE = window.SITE || {};
   var DS = window.DS;
-  var esc = DS.esc, link = DS.link;
+  var esc = DS.esc, t = DS.t, ui = DS.ui, link = DS.link;
   var P = SITE.profile || {};
 
   function $(sel) { return document.querySelector(sel); }
-  function sampleTag(item) { return item.sample ? '<span class="tag">Sample</span>' : ""; }
 
   /* ------------------------------------------------------------------ */
-  /*  HERO                                                               */
+  /*  01 — OPENING TITLE                                                 */
   /* ------------------------------------------------------------------ */
+  var heroVideo = null;
+
   function initHero() {
     var H = SITE.hero || {};
     var hero = $("[data-hero]");
     if (!hero) return;
 
     var poster = $("[data-hero-poster]");
-    if (H.poster && poster && poster.getAttribute("src") !== H.poster) poster.src = H.poster;
+    if (H.poster && poster.getAttribute("src") !== H.poster) poster.src = H.poster;
     if (H.focus) {
       hero.style.setProperty("--focus-d", H.focus.desktop || "50% 50%");
       hero.style.setProperty("--focus-m", H.focus.mobile || H.focus.desktop || "50% 50%");
     }
 
-    var cap = $("[data-hero-caption]");
-    if (cap) { if (H.caption) cap.textContent = H.caption; else cap.remove(); }
+    // Running timecode (HH:MM:SS:FF at 24 fps) — a quiet "recording" detail
+    var tc = $("[data-hero-tc]");
+    var t0 = performance.now();
+    function two(n) { return (n < 10 ? "0" : "") + n; }
+    function tick(now) {
+      var s = (now - t0) / 1000;
+      tc.textContent = two(Math.floor(s / 3600)) + ":" + two(Math.floor(s / 60) % 60) + ":" + two(Math.floor(s) % 60) + ":" + two(Math.floor((s % 1) * 24));
+      if (!DS.reducedMotion.matches) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    // Subtle push-in while the opening title scrolls away
+    if (!DS.reducedMotion.matches) {
+      var media = $("[data-hero-media]");
+      window.addEventListener("scroll", function () {
+        var p = Math.min(1, window.scrollY / hero.offsetHeight);
+        media.style.transform = "scale(" + (1.04 + p * 0.08).toFixed(4) + ")";
+        hero.style.setProperty("--bar", (p * 6).toFixed(2) + "vh");
+      }, { passive: true });
+    }
 
     // Video — only when a source is configured; respects reduced motion & data saver.
     var v = H.video || {};
@@ -37,12 +57,10 @@
     var saveData = navigator.connection && navigator.connection.saveData;
     if (!src || saveData) return;
 
-    var media = $("[data-hero-media]");
     var btn = $("[data-hero-playback]");
-    var video = document.createElement("video");
+    var video = heroVideo = document.createElement("video");
     video.className = "hero__video";
     video.muted = true;
-    video.defaultMuted = true;
     video.loop = true;
     video.playsInline = true;
     video.setAttribute("muted", "");
@@ -51,211 +69,217 @@
     video.preload = "metadata";
     if (H.poster) video.poster = H.poster;
     video.src = src;
-    media.appendChild(video);
+    $("[data-hero-media]").appendChild(video);
 
-    var userPaused = DS.reducedMotion.matches; // reduced motion → start paused on the poster
-    function setBtn() {
-      if (!btn) return;
-      var paused = video.paused;
-      btn.textContent = paused ? "Play" : "Pause";
-      btn.setAttribute("aria-label", (paused ? "Play" : "Pause") + " background video");
-    }
+    var userPaused = DS.reducedMotion.matches;
     function tryPlay() {
       if (userPaused) return;
       var p = video.play();
-      if (p && p.catch) p.catch(function () { /* autoplay blocked — the poster stays */ });
+      if (p && p.catch) p.catch(function () {});
     }
-
     video.addEventListener("playing", function () { hero.classList.add("has-video"); setBtn(); });
     video.addEventListener("pause", setBtn);
-    video.addEventListener("error", function () { video.remove(); if (btn) btn.hidden = true; });
-    video.addEventListener("loadeddata", function () { if (btn) btn.hidden = false; setBtn(); });
-
-    if (btn) btn.addEventListener("click", function () {
-      if (video.paused) { userPaused = false; hero.classList.add("has-video"); tryPlay(); }
-      else { userPaused = true; video.pause(); }
+    video.addEventListener("error", function () { video.remove(); btn.hidden = true; });
+    video.addEventListener("loadeddata", function () { btn.hidden = false; setBtn(); });
+    btn.addEventListener("click", function () {
+      if (video.paused) { userPaused = false; tryPlay(); } else { userPaused = true; video.pause(); }
     });
-
-    DS.reducedMotion.addEventListener("change", function (m) {
-      if (m.matches) { userPaused = true; video.pause(); }
-    });
-
-    // Pause while off-screen to save battery / CPU.
     if ("IntersectionObserver" in window) {
-      new IntersectionObserver(function (e) {
-        if (e[0].isIntersecting) tryPlay(); else video.pause();
-      }).observe(hero);
+      new IntersectionObserver(function (e) { if (e[0].isIntersecting) tryPlay(); else video.pause(); }).observe(hero);
     } else {
       tryPlay();
     }
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  SELECTED WORK                                                      */
-  /* ------------------------------------------------------------------ */
-  function projectCard(p, i) {
-    var meta = [DS.titleCase(p.category), p.year].filter(Boolean).join(" · ");
-    return '<li class="poster-card" data-category="' + esc(p.category) + '">' +
-      '<a class="poster-card__link" href="project.html?p=' + encodeURIComponent(p.slug) + '">' +
-        '<span class="poster">' + DS.poster(p, i) + "</span>" +
-        '<span class="poster-card__meta">' +
-          '<span class="poster-card__num">' + DS.pad(i + 1) + "</span>" +
-          '<span class="poster-card__text">' +
-            '<h3 class="poster-card__title">' + esc(p.title) + "</h3>" +
-            '<span class="poster-card__cat">' + esc(meta) + "</span>" +
-          "</span>" +
-          sampleTag(p) +
-        "</span>" +
-      "</a></li>";
+  function setBtn() {
+    var btn = $("[data-hero-playback]");
+    if (!btn || !heroVideo) return;
+    var paused = heroVideo.paused;
+    btn.textContent = paused ? "▶ " + ui("hero.reel") : "❚❚ " + ui("hero.reel");
+    btn.setAttribute("aria-label", ui(paused ? "hero.play" : "hero.pause"));
   }
 
-  function renderProjects() {
-    var grid = $("[data-project-grid]");
-    var list = SITE.projects || [];
-    if (!grid) return;
-    grid.innerHTML = list.map(projectCard).join("");
+  function renderHero() {
+    var H = SITE.hero || {};
+    $("[data-hero-scene]").textContent = t(H.scene);
+    setBtn();
+  }
 
-    // Filters only earn their place when there is enough work to browse.
+  /* ------------------------------------------------------------------ */
+  /*  03 — IN DEVELOPMENT                                                */
+  /* ------------------------------------------------------------------ */
+  var STAGES = ["idea", "writing", "preproduction", "shooting", "post"];
+
+  function renderDev() {
+    var el = $("[data-dev-list]");
+    if (!el) return;
+    el.innerHTML = (SITE.development || []).map(function (d) {
+      var at = Math.max(0, STAGES.indexOf(d.status));
+      return '<li class="dcard" data-reveal>' +
+        '<div class="dcard__top">' +
+          '<span class="dcard__code">' + esc(d.code || "") + "</span>" +
+          '<span class="dcard__format">' + esc(t(d.format)) + "</span>" +
+          DS.sampleTag(d) +
+        "</div>" +
+        '<h3 class="dcard__title">' + esc(t(d.title)) + "</h3>" +
+        (t(d.logline) ? '<p class="dcard__logline">' + esc(t(d.logline)) + "</p>" : "") +
+        '<div class="dcard__status">' +
+          '<p class="dcard__now"><i aria-hidden="true"></i>' + esc(ui("dev.status." + STAGES[at])) + "</p>" +
+          '<ol class="dcard__track" aria-hidden="true">' +
+            STAGES.map(function (s, i) {
+              return '<li class="' + (i < at ? "is-done" : i === at ? "is-now" : "") + '"><span>' + esc(ui("dev.status." + s)) + "</span></li>";
+            }).join("") +
+          "</ol>" +
+        "</div>" +
+        (d.target ? '<p class="dcard__target"><span>' + esc(ui("dev.target")) + "</span>" + esc(d.target) + "</p>" : "") +
+      "</li>";
+    }).join("");
+    DS.observeReveal(el);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  04 — WORK                                                          */
+  /* ------------------------------------------------------------------ */
+  var activeFilter = "all";
+
+  function renderWork() {
+    var grid = $("[data-work-grid]");
+    var bar = $("[data-filters]");
+    if (!grid) return;
+    var list = DS.projects();
+
+    grid.innerHTML = list.map(function (p, i) {
+      var meta = [DS.catLabel(p.category), p.year].filter(Boolean).join(" · ");
+      return '<li class="card" data-cat="' + esc(p.category) + '" data-reveal>' +
+        '<a class="card__link" href="' + esc(DS.projectUrl(p)) + '">' +
+          '<span class="card__media poster">' + DS.poster(p, i) + "</span>" +
+          '<span class="card__meta">' +
+            '<span class="card__num">' + DS.pad(i + 1) + "</span>" +
+            '<span class="card__text"><h3 class="card__title">' + esc(t(p.title)) + "</h3>" +
+            '<span class="card__cat">' + esc(meta) + "</span></span>" +
+            DS.sampleTag(p) +
+          "</span>" +
+        "</a></li>";
+    }).join("");
+
     var cats = [];
     list.forEach(function (p) { if (cats.indexOf(p.category) < 0) cats.push(p.category); });
-    var bar = $("[data-filters]");
-    if (!bar || list.length < 8 || cats.length < 3) return;
-
+    if (cats.length < 2) { bar.hidden = true; return; }
     bar.hidden = false;
-    bar.setAttribute("role", "group");
-    bar.setAttribute("aria-label", "Filter projects by category");
-    bar.innerHTML = ["ALL"].concat(cats).map(function (c, i) {
-      return '<button type="button" class="filter" aria-pressed="' + (i === 0) + '" data-filter="' + esc(c) + '">' + esc(DS.titleCase(c)) + "</button>";
+    bar.setAttribute("aria-label", ui("work.kicker"));
+    bar.innerHTML = ["all"].concat(cats).map(function (c) {
+      var n = c === "all" ? list.length : list.filter(function (p) { return p.category === c; }).length;
+      return '<button type="button" class="chip" aria-pressed="' + (c === activeFilter) + '" data-filter="' + esc(c) + '">' +
+        esc(c === "all" ? ui("work.all") : DS.catLabel(c)) + "<sup>" + n + "</sup></button>";
     }).join("");
+    applyFilter();
+    DS.observeReveal(grid);
+  }
+
+  function applyFilter() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-filter]"), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-filter") === activeFilter));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-work-grid] .card"), function (c) {
+      c.hidden = !(activeFilter === "all" || c.getAttribute("data-cat") === activeFilter);
+    });
+  }
+
+  function initWork() {
+    var bar = $("[data-filters]");
     bar.addEventListener("click", function (e) {
       var b = e.target.closest("[data-filter]");
       if (!b) return;
-      var f = b.getAttribute("data-filter");
-      bar.querySelectorAll("[data-filter]").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
-      grid.querySelectorAll(".poster-card").forEach(function (card) {
-        card.hidden = !(f === "ALL" || card.getAttribute("data-category") === f);
-      });
+      activeFilter = b.getAttribute("data-filter");
+      applyFilter();
     });
   }
 
   /* ------------------------------------------------------------------ */
-  /*  DESIGN & ART DIRECTION                                             */
+  /*  05 — STATEMENT + ARTURUS                                           */
   /* ------------------------------------------------------------------ */
-  function renderDesign() {
-    var grid = $("[data-design-grid]");
-    if (!grid) return;
-    grid.innerHTML = (SITE.design || []).map(function (d, i) {
-      var media = d.image
-        ? '<img src="' + esc(d.image) + '" alt="' + esc(d.alt || d.title) + '" loading="lazy" decoding="async">'
-        : '<span class="dph" role="img" aria-label="Placeholder for ' + esc(d.title) + '">' +
-            '<span class="dph__crop dph__crop--tl"></span><span class="dph__crop dph__crop--br"></span>' +
-            '<span class="dph__label">' + esc(d.type) + "<br>Artwork to be supplied</span>" +
-          "</span>";
-      var meta = [d.type, d.year].filter(Boolean).join(" · ");
-      return '<article class="design-item design-item--' + esc(d.size || "wide") + '">' +
-        '<div class="design-item__media" style="aspect-ratio:' + esc(d.ratio || "4/3") + '">' + media + "</div>" +
-        '<div class="design-item__caption">' +
-          '<span class="design-item__num">' + DS.pad(i + 1) + "</span>" +
-          "<div>" +
-            '<h3 class="design-item__title">' + esc(d.title) + " " + sampleTag(d) + "</h3>" +
-            '<p class="design-item__meta">' + esc(meta) + "</p>" +
-            (d.description ? '<p class="design-item__desc">' + esc(d.description) + "</p>" : "") +
-          "</div>" +
-        "</div>" +
-      "</article>";
-    }).join("");
-  }
-
-  /* ------------------------------------------------------------------ */
-  /*  ABOUT                                                              */
-  /* ------------------------------------------------------------------ */
-  function renderAbout() {
-    var A = SITE.about || {};
+  function renderStatement() {
+    var S = SITE.statement || {};
     var fig = $("[data-portrait]");
-    if (fig) {
-      fig.innerHTML = A.portrait
-        ? '<img src="' + esc(A.portrait) + '" alt="' + esc(A.portraitAlt || "Portrait of Daniels") + '" loading="lazy" decoding="async">'
-        : '<span class="portrait-ph" role="img" aria-label="Portrait placeholder"><span>Portrait<br>to be supplied</span></span>';
-    }
+    fig.innerHTML = S.portrait
+      ? '<img src="' + esc(S.portrait) + '" alt="' + esc(t(S.portraitAlt)) + '" loading="lazy" decoding="async">'
+      : '<span class="slate slate--portrait" role="img" aria-label="' + esc(ui("st.portrait")) + '">' +
+          '<span class="slate__bar" aria-hidden="true"></span>' +
+          '<span class="slate__row"><span>DANIELS</span><span>4:5</span></span>' +
+          '<span class="slate__note">' + esc(ui("st.portrait")) + "</span>" +
+        "</span>";
 
-    var facts = $("[data-about-facts]");
-    if (facts) {
-      var pending = '<span class="pending">To be added</span>';
-      var exp = (A.experience || []).length
-        ? "<ul>" + A.experience.map(function (e) {
-            return "<li><span>" + esc(e.role) + (e.place ? " — " + esc(e.place) : "") + "</span>" +
-                   (e.period ? '<span class="facts__period">' + esc(e.period) + "</span>" : "") + "</li>";
-          }).join("") + "</ul>"
-        : pending;
-      var skills = (A.skills || []).length ? esc(A.skills.join(", ")) : pending;
-      facts.innerHTML =
-        row("Based in", esc(A.location || "")) +
-        row("Disciplines", esc((A.disciplines || []).join(", "))) +
-        row("Experience", exp) +
-        row("Skills", skills);
-    }
-    function row(k, v) { return v ? '<div class="facts__row"><dt>' + k + "</dt><dd>" + v + "</dd></div>" : ""; }
+    $("[data-st-lead]").textContent = t(S.lead);
+    $("[data-st-text]").innerHTML = (S.paragraphs || []).map(function (p) { return "<p>" + esc(t(p)) + "</p>"; }).join("");
 
-    var links = $("[data-about-links]");
-    if (links) {
-      links.innerHTML =
-        "<li><span class=\"about__links-k\">CV</span>" + link(P.cv, "Download CV", { download: !/^https?:/.test(P.cv) }) + "</li>" +
-        "<li><span class=\"about__links-k\">LinkedIn</span>" + link(P.linkedin, "View profile") + "</li>";
-    }
-  }
+    var disciplines = t(S.disciplines) || [];
+    $("[data-st-facts]").innerHTML =
+      row(ui("st.based"), esc(t(P.location))) +
+      row(ui("st.disciplines"), esc(disciplines.join(" · ")));
 
-  /* ------------------------------------------------------------------ */
-  /*  ARTURUS                                                            */
-  /* ------------------------------------------------------------------ */
-  function renderArturus() {
+    var inf = S.influences || [];
+    $("[data-st-influences]").innerHTML = inf.length
+      ? '<p class="st__k">' + esc(ui("st.influences")) + (S.influencesSample ? " " + DS.sampleTag({ sample: true }) : "") + "</p>" +
+        '<ol class="inf">' + inf.map(function (x, i) {
+          return '<li><span class="inf__n">' + DS.pad(i + 1) + '</span><span class="inf__name">' + esc(x.name) + '</span><span class="inf__work">' + esc(x.work || "") + "</span></li>";
+        }).join("") + "</ol>"
+      : "";
+
+    $("[data-st-cv]").innerHTML = P.cv ? link(P.cv, ui("st.cv"), { download: !/^https?:/.test(P.cv) }) : "";
+
     var R = SITE.arturus || {};
-    var media = $("[data-arturus-media]");
-    if (media) {
-      media.innerHTML = R.image
-        ? '<img src="' + esc(R.image) + '" alt="' + esc(R.imageAlt || "") + '" loading="lazy" decoding="async" width="896" height="1200">'
-        : "";
-      if (!R.image) media.remove();
-    }
-    var links = $("[data-arturus-links]");
-    if (links) {
-      links.innerHTML =
-        '<li><span class="k">Website</span>' + link(R.website, "Visit Arturus", { pendingText: "Coming soon" }) + "</li>" +
-        '<li><span class="k">Instagram</span>' + link(R.instagram, DS.handleFromUrl(R.instagram), { pendingText: "Coming soon" }) + "</li>";
-    }
+    var media = $("[data-ar-media]");
+    media.innerHTML = R.image ? '<img src="' + esc(R.image) + '" alt="' + esc(t(R.imageAlt)) + '" loading="lazy" decoding="async">' : "";
+    media.hidden = !R.image;
+    $("[data-ar-text]").textContent = t(R.text);
+    $("[data-ar-links]").innerHTML =
+      '<li><span class="k">' + esc(ui("ar.site")) + "</span>" + link(R.website, "arturus") + "</li>" +
+      '<li><span class="k">' + esc(ui("ar.ig")) + "</span>" + link(R.instagram, DS.handleFromUrl(R.instagram)) + "</li>";
+
+    function row(k, v) { return v ? '<div class="facts__row"><dt>' + esc(k) + "</dt><dd>" + v + "</dd></div>" : ""; }
   }
 
   /* ------------------------------------------------------------------ */
-  /*  CONTACT                                                            */
+  /*  06 — CONTACT                                                       */
   /* ------------------------------------------------------------------ */
   function renderContact() {
-    var el = $("[data-contact-list]");
-    if (!el) return;
+    $("[data-ct-main]").innerHTML = P.email
+      ? '<a class="ct__email" href="mailto:' + esc(P.email) + '">' + esc(P.email) + ' <span aria-hidden="true">↗</span></a>'
+      : '<p class="ct__email ct__email--soon"><span class="k">' + esc(ui("ct.email")) + "</span>" + esc(ui("soon")) + "</p>";
+
     var rows = [
-      { k: "Email", html: link(P.email ? "mailto:" + P.email : "", P.email, { arrow: false }) },
-      { k: "LinkedIn", html: link(P.linkedin, "Daniels on LinkedIn") },
       { k: "Instagram", html: link(P.instagram, P.instagramHandle || DS.handleFromUrl(P.instagram)) },
-      { k: "CV", html: link(P.cv, "Download CV (PDF)", { download: !/^https?:/.test(P.cv) }) }
+      { k: "Vimeo", html: link(P.vimeo, "Vimeo") },
+      { k: "LinkedIn", html: link(P.linkedin, "LinkedIn") },
+      { k: "CV", html: link(P.cv, ui("st.cv"), { download: !/^https?:/.test(P.cv) }) }
     ];
-    el.innerHTML = rows.map(function (r) {
-      return '<li class="contact__row"><span class="contact__k">' + r.k + '</span><span class="contact__v">' + r.html + "</span></li>";
+    $("[data-ct-list]").innerHTML = rows.map(function (r) {
+      return '<li class="ct__row"><span class="ct__k">' + r.k + '</span><span class="ct__v">' + r.html + "</span></li>";
     }).join("");
   }
 
   /* ------------------------------------------------------------------ */
-  /* ------------------------------------------------------------------ */
-  document.documentElement.classList.add("js");
+  function renderAll() {
+    document.title = ui("meta.title");
+    var md = document.querySelector('meta[name="description"]');
+    if (md) md.setAttribute("content", ui("meta.desc"));
+    renderHero();
+    renderDev();
+    renderWork();
+    renderStatement();
+    renderContact();
+    DS.observeReveal();
+  }
+
   initHero();
-  renderProjects();
-  renderDesign();
-  renderAbout();
-  renderArturus();
-  renderContact();
-  DS.renderFooter("");
-  DS.initHeader();
+  initWork();
+  renderAll();
+  document.addEventListener("ds:lang", renderAll);
+
   if (window.location.hash) {
     try {
-      var initialTarget = document.querySelector(window.location.hash);
-      if (initialTarget) initialTarget.scrollIntoView({ behavior: "auto" });
+      var target = document.querySelector(window.location.hash);
+      if (target) target.scrollIntoView({ behavior: "auto" });
     } catch (e) {}
   }
   requestAnimationFrame(function () { document.body.classList.add("is-ready"); });

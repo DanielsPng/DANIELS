@@ -1,13 +1,14 @@
 ﻿/* ==========================================================================
-   DANIELS® — FEATURED FILMS ROLL (siena.film home roll)
-   - Looping vertical film roll: scrolling down moves the reel up, items wrap around
-     (last film peeks above the first)
+   DANIELS® — FILMS ROLL (siena.film home roll)
+   - Looping vertical film roll: scrolling down moves the reel up, items wrap
+     around (last film peeks above the first)
    - Scroll-driven (sticky stage) with snap to the nearest film and mouse drag
    - WebGL frames: organic celluloid mask atlas, corner/edge grading, image parallax
    - Post pass: vertical motion blur + glow by scroll speed, animated film grain
    - DOM overlay: per-element parallax (data-parallax) and speed blur
-   - Cream ticket nav (films dropdown + menu) and EXPLORE cursor with prev/next
+   - Drives the header ticket ("now showing") and the EXPLORE cursor
    - Falls back to CSS-masked <img> frames when WebGL is unavailable (e.g. file://)
+   Films = projects with a `featured` block in js/data.js.
    ========================================================================== */
 
 (function () {
@@ -16,16 +17,10 @@
   var root = document.querySelector("[data-sf]");
   if (!root) return;
 
-  var SITE = window.SITE || {};
-  var films = SITE.featuredFilms || [];
+  var DS = window.DS;
+  var esc = DS.esc, t = DS.t, ui = DS.ui;
+  var films = DS.featured();
   if (!films.length) { root.remove(); return; }
-
-  var P = SITE.profile || {};
-  var esc = (window.DS && window.DS.esc) || function (s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
-  };
 
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -34,7 +29,6 @@
   var stage = root.querySelector("[data-sf-stage]");
   var rollEl = root.querySelector("[data-sf-roll]");
   var canvas = root.querySelector("[data-sf-canvas]");
-  var ticketEl = root.querySelector("[data-sf-ticket]");
   var cursor = root.querySelector("[data-sf-cursor]");
 
   var N = films.length;
@@ -42,10 +36,8 @@
 
   /* ---------- Icons ---------- */
   var STAR = '<path d="M5 0l1.18 3.43h3.62L6.9 5.95 8 9.4 5 7.3 2 9.4l1.1-3.45L.2 3.83h3.62z"/>';
-  var CHEV = '<svg viewBox="0 0 15 8" aria-hidden="true"><path d="m1 1 5.09 5.09a2 2 0 0 0 2.82 0L14 1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
   var ARROW_R = '<svg viewBox="0 0 11 10" aria-hidden="true"><path fill="currentColor" d="M4.481.005a6.65 6.65 0 0 1 6.46 4.659c.078.229.08.479-.003.706C10.302 7.105 8.318 10 4.48 10V8.39c.941.127 2.922-.257 4.442-2.603H0V4.208h8.938c-.756-1.229-2.216-2.78-4.457-2.78V.006Z"/></svg>';
   var EXPLORE_BG = '<svg viewBox="0 0 142 44" preserveAspectRatio="none" aria-hidden="true"><path class="sf-explore__bg" d="M5 1h90c0 1 .6 3 3 3s3-2 3-3h36c0 3.2 2.667 4.144 4 4.216V39c-3.2 0-4 2.667-4 4h-35c0-1.333-.8-4-4-4s-4 2.667-4 4H5c0-3.6-2.667-4.167-4-4V5c3.2 0 4-2.667 4-4Z"/><path class="sf-explore__seam" d="M98 4.5v34" stroke-dasharray="4"/></svg>';
-  var CURSOR_ARROW = '<svg viewBox="0 0 35 23" aria-hidden="true"><path d="M2 21 17.5 3 33 21" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 
   function stars(n) {
     var s = "";
@@ -53,7 +45,8 @@
     return '<span class="sf-stars" aria-label="' + n + ' / 5">' + s + "</span>";
   }
 
-  function laurel(l, f) {
+  /* Laurel wreath — only for real festival selections (featured.laurel) */
+  function laurel(l) {
     var R = 40, cx = 50, cy = 54, leaves = "";
     for (var k = 0; k < 9; k++) {
       var deg = 112 + k * 16;
@@ -66,55 +59,57 @@
     return '<span class="sf-laurel">' +
       '<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="currentColor">' + leaves + "</g>" +
         '<path d="M44 95 Q14 86 12 50 M56 95 Q86 86 88 50" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>' +
-      '<span class="sf-laurel__tx">' +
-        "<small>Official selection</small>" +
-        "<b>" + esc(l.category || f.category) + "</b>" +
-        "<small>" + esc(l.year || f.year) + "</small>" +
-      "</span>" +
+      '<span class="sf-laurel__tx"><small>' + esc(t(l.selection) || "Official selection") + "</small><b>" + esc(t(l.festival)) + "</b><small>" + esc(l.year || "") + "</small></span>" +
     "</span>";
   }
 
-  function detailUrl(f) {
-    return f.detailUrl || ("project.html?p=" + encodeURIComponent(f.slug));
-  }
-
   function exploreBtn(f, extra) {
-    return '<a class="sf-explore' + (extra || "") + '" href="' + esc(detailUrl(f)) + '" data-sf-nocursor aria-label="Explore ' + esc(f.title) + '">' +
+    var label = ui("films.explore").toUpperCase();
+    return '<a class="sf-explore' + (extra || "") + '" href="' + esc(DS.projectUrl(f)) + '" data-sf-nocursor aria-label="' + esc(ui("films.explore") + " — " + t(f.title)) + '">' +
       '<span class="sf-explore__btn" data-parallax="24">' +
-        '<span class="sf-explore__col"><span class="sf-explore__of"><span class="sf-explore__tx" data-after="EXPLORE">EXPLORE</span></span></span>' +
+        '<span class="sf-explore__col"><span class="sf-explore__of"><span class="sf-explore__tx" data-after="' + esc(label) + '">' + esc(label) + "</span></span></span>" +
         '<span class="sf-explore__col sf-explore__col--last"><span class="sf-explore__of sf-explore__of--ar"><span class="sf-explore__ar">' + ARROW_R + ARROW_R + "</span></span></span>" +
         '<span class="sf-explore__shape">' + EXPLORE_BG + "</span>" +
       "</span>" +
     "</a>";
   }
 
-  /* ---------- Render roll items ---------- */
-  rollEl.innerHTML = films.map(function (f, i) {
-    var l = f.laurel || {};
-    var reviews = (f.quotes || []).map(function (q, o) {
+  /* ---------- Render roll items (re-run on language change) ---------- */
+  var items = [], imgs = [], parallax = [];
+
+  function itemHTML(f, i) {
+    var F = f.featured || {};
+    var l = F.laurel;
+    var notes = (F.notes || []).map(function (q, o) {
       return '<div class="sf-review" data-parallax="' + (15 + o * 8) + '">' +
         (q.rating > 0 ? stars(q.rating) : "") +
-        "<p>" + esc(q.source) + "</p>" +
-        "<h3>“" + esc(q.quote) + "”</h3>" +
+        "<p>" + esc(t(q.label)) + "</p>" +
+        "<h3>“" + esc(t(q.text)) + "”</h3>" +
       "</div>";
     }).join("");
 
-    var rows = [["Director", f.director || "DANIELS"], ["Year", f.year], ["Category", f.category]];
+    var rows = [
+      [ui("films.director"), f.director || "Daniels"],
+      [ui("films.year"), f.year || "—"],
+      [ui("films.category"), DS.catLabel(f.category)]
+    ];
+
+    var award = l
+      ? '<span class="sf-award__year">' + esc(l.year || f.year) + "</span>" +
+        '<span class="sf-award__he">' + esc(t(l.award)) + "</span>" + laurel(l)
+      : '<span class="sf-award__year">' + DS.pad(i + 1) + "</span>" +
+        '<span class="sf-award__he">' + esc(ui("hero.kicker")) + " Daniels</span>";
 
     return '<div class="sf-item" data-sf-item="' + i + '"' + (i ? ' aria-hidden="true"' : "") + ">" +
       '<div class="sf-item__c">' +
-        '<div class="sf-item__img"><img src="' + esc(f.poster) + '" alt="" data-sf-img ' + (i === 0 ? 'loading="eager"' : 'loading="lazy"') + ' decoding="async"></div>' +
+        '<div class="sf-item__img"><img src="' + esc(F.backdrop || f.poster) + '" alt="" data-sf-img ' + (i === 0 ? 'loading="eager"' : 'loading="lazy"') + ' decoding="async"></div>' +
         '<div class="sf-item__ui">' +
           '<div class="sf-content" data-parallax="2">' +
             '<div class="sf-col">' +
-              '<div class="sf-ci sf-award" data-parallax="12">' +
-                '<span class="sf-award__year">' + esc(l.year || f.year) + "</span>" +
-                '<span class="sf-award__he">' + esc(l.event || "Official selection") + "</span>" +
-                laurel(l, f) +
-              "</div>" +
+              '<div class="sf-ci sf-award" data-parallax="12">' + award + "</div>" +
               '<div class="sf-ci sf-titleblock" data-parallax="15">' +
-                '<span class="sf-eyeb">' + esc(f.category) + "</span>" +
-                '<h2 class="sf-title">' + esc(f.title) + "</h2>" +
+                '<span class="sf-eyeb">' + esc(t(F.label) || DS.catLabel(f.category)) + "</span>" +
+                '<h2 class="sf-title">' + esc(t(f.title)) + "</h2>" +
                 '<div class="sf-callout"><ul>' +
                   rows.map(function (r, k) {
                     return "<li>" +
@@ -129,112 +124,34 @@
               "</div>" +
             "</div>" +
             '<div class="sf-col sf-col--reviews">' +
-              '<div class="sf-reviews" data-parallax="2">' + reviews + "</div>" +
+              '<div class="sf-reviews" data-parallax="2">' + notes + "</div>" +
               exploreBtn(f, "") +
             "</div>" +
           "</div>" +
         "</div>" +
       "</div>" +
     "</div>";
-  }).join("");
+  }
 
-  var items = Array.prototype.slice.call(rollEl.querySelectorAll("[data-sf-item]"));
-  var imgs = items.map(function (el) { return el.querySelector("[data-sf-img]"); });
-  var parallax = items.map(function (el) {
-    return Array.prototype.map.call(el.querySelectorAll("[data-parallax]"), function (p) {
-      return { el: p, v: +p.getAttribute("data-parallax") };
+  function renderItems() {
+    rollEl.innerHTML = films.map(itemHTML).join("");
+    items = Array.prototype.slice.call(rollEl.querySelectorAll("[data-sf-item]"));
+    imgs = items.map(function (el) { return el.querySelector("[data-sf-img]"); });
+    parallax = items.map(function (el) {
+      return Array.prototype.map.call(el.querySelectorAll("[data-parallax]"), function (p) {
+        return { el: p, v: +p.getAttribute("data-parallax") };
+      });
     });
-  });
-
-  /* ---------- Ticket nav ---------- */
-  ticketEl.innerHTML =
-    '<div class="sf-tk__body">' +
-      '<button type="button" class="sf-tk__film" data-sf-tk-toggle aria-expanded="false" aria-controls="sf-tk-drop" aria-label="Films">' +
-        '<span class="sf-tk__top">' +
-          '<span class="sf-tk__thumb"><img src="' + esc(films[0].poster) + '" alt="" data-sf-tk-img></span>' +
-          '<span class="sf-tk__title" data-sf-tk-title>' + esc(films[0].title) + "</span>" +
-          '<span class="sf-tk__chev">' + CHEV + "</span>" +
-        "</span>" +
-        '<span class="sf-tk__bot">' +
-          '<span class="sf-tk__cell" data-sf-tk-cat>' + esc(films[0].category) + "</span>" +
-          '<span class="sf-tk__cell sf-tk__cell--c" data-sf-tk-year>' + esc(films[0].year) + "</span>" +
-          '<span class="sf-tk__cell" data-sf-tk-dur>MIN.' + esc(films[0].duration || "") + "</span>" +
-        "</span>" +
-      "</button>" +
-      '<span class="sf-tk__seam" aria-hidden="true"></span>' +
-      '<button type="button" class="sf-tk__menu" data-sf-tk-menu aria-expanded="false" aria-controls="sf-tk-panel" aria-label="Menu">' +
-        '<span class="sf-tk__lines"><i></i><i></i><i></i></span>' +
-      "</button>" +
-    "</div>" +
-    '<div class="sf-tk__drop" id="sf-tk-drop" data-sf-tk-drop>' +
-      films.map(function (f, i) {
-        return '<button type="button" class="sf-tk__item' + (i === 0 ? " is-active" : "") + '" data-sf-jump="' + i + '">' +
-          '<span class="sf-tk__thumb"><img src="' + esc(f.poster) + '" alt="" loading="lazy"></span>' +
-          '<span class="sf-tk__item-tx"><b>' + esc(f.title) + "</b><small>" + esc(f.category) + " · " + esc(f.year) + "</small></span>" +
-          '<span class="sf-tk__item-ar">' + ARROW_R + "</span>" +
-        "</button>";
-      }).join("") +
-    "</div>" +
-    '<div class="sf-tk__panel" id="sf-tk-panel" data-sf-tk-panel>' +
-      '<ul class="sf-tk__nav">' +
-        '<li><a href="#featured"><small>01</small>Featured Films</a></li>' +
-        '<li><a href="#work"><small>02</small>Selected Work</a></li>' +
-        '<li><a href="#about"><small>03</small>About Daniels</a></li>' +
-        '<li><a href="#arturus"><small>04</small>Arturus</a></li>' +
-        '<li><a href="#contact"><small>05</small>Contact</a></li>' +
-      "</ul>" +
-      (P.instagram ? '<a class="sf-tk__social" href="' + esc(P.instagram) + '" target="_blank" rel="noopener noreferrer">Instagram ' + esc(P.instagramHandle || "") + " ↗</a>" : "") +
-      '<span class="sf-tk__copy">© ' + new Date().getFullYear() + " DANIELS® · Arturus</span>" +
-    "</div>";
-
-  var tkToggle = ticketEl.querySelector("[data-sf-tk-toggle]");
-  var tkMenu = ticketEl.querySelector("[data-sf-tk-menu]");
-  var tkDrop = ticketEl.querySelector("[data-sf-tk-drop]");
-  var tkPanel = ticketEl.querySelector("[data-sf-tk-panel]");
-  var tkTitle = ticketEl.querySelector("[data-sf-tk-title]");
-  var tkImg = ticketEl.querySelector("[data-sf-tk-img]");
-
-  function setOpen(which) {
-    var dropOpen = which === "films", panelOpen = which === "menu";
-    tkDrop.classList.toggle("is-open", dropOpen);
-    tkPanel.classList.toggle("is-open", panelOpen);
-    tkToggle.setAttribute("aria-expanded", String(dropOpen));
-    tkMenu.setAttribute("aria-expanded", String(panelOpen));
-    ticketEl.classList.toggle("is-films", dropOpen);
-    ticketEl.classList.toggle("is-menu", panelOpen);
   }
 
-  tkToggle.addEventListener("click", function () { setOpen(tkDrop.classList.contains("is-open") ? null : "films"); });
-  tkMenu.addEventListener("click", function () { setOpen(tkPanel.classList.contains("is-open") ? null : "menu"); });
-  tkDrop.addEventListener("click", function (e) {
-    var b = e.target.closest("[data-sf-jump]");
-    if (!b) return;
-    setOpen(null);
-    scrollToFilm(parseInt(b.getAttribute("data-sf-jump"), 10));
-  });
-  tkPanel.addEventListener("click", function (e) { if (e.target.closest("a")) setOpen(null); });
-  document.addEventListener("click", function (e) { if (!ticketEl.contains(e.target)) setOpen(null); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") setOpen(null); });
-
-  function updateTicket(i) {
-    var f = films[i];
-    ticketEl.classList.remove("is-swap");
-    void ticketEl.offsetWidth;
-    ticketEl.classList.add("is-swap");
-    tkTitle.textContent = f.title;
-    tkImg.src = f.poster;
-    ticketEl.querySelector("[data-sf-tk-cat]").textContent = f.category;
-    ticketEl.querySelector("[data-sf-tk-year]").textContent = f.year;
-    ticketEl.querySelector("[data-sf-tk-dur]").textContent = "MIN." + (f.duration || "");
-    Array.prototype.forEach.call(tkDrop.children, function (b, k) { b.classList.toggle("is-active", k === i); });
-  }
+  renderItems();
 
   /* ==========================================================================
      Roll state (mirrors siena: wrap, lerp, speed → blur)
      ========================================================================== */
   function mod(a, n) { return ((a % n) + n) % n; }
-  function wrap(a, half) { var t = mod(a, 2 * half); return t >= half ? t - 2 * half : t; }
-  function lerp(a, b, t) { return a * (1 - t) + b * t; }
+  function wrap(a, half) { var w = mod(a, 2 * half); return w >= half ? w - 2 * half : w; }
+  function lerp(a, b, k) { return a * (1 - k) + b * k; }
 
   var vh = 0, stageH = 0, itemH = 0, marginH = 0;
   var target = 0, current = 0, lastTarget = 0;
@@ -242,6 +159,7 @@
   var active = 0;
   var offsets = new Array(N);
   var imgBox = { x: 0, w: 0, h: 0 };
+  var inView = false;
 
   function sectionTop() { return root.getBoundingClientRect().top + window.pageYOffset; }
 
@@ -265,15 +183,17 @@
   function readScroll() {
     var r = root.getBoundingClientRect();
     target = Math.max(0, Math.min(N - 1, -r.top / vh));
-    var owns = r.top <= 2 && r.bottom >= vh - 2;
-    document.documentElement.classList.toggle("sf-active", owns);
-    if (!owns) setOpen(null);
+    var nowIn = r.top < vh * 0.5 && r.bottom > vh * 0.5;
+    if (nowIn && !inView) DS.setTicket(films[active]);
+    inView = nowIn;
   }
 
   function scrollToFilm(i) {
     var idx = Math.max(0, Math.min(N - 1, i));
     window.scrollTo({ top: sectionTop() + idx * vh, behavior: reduced ? "auto" : "smooth" });
   }
+
+  window.SF = { goTo: scrollToFilm };
 
   /* Snap to the nearest film once scrolling settles (siena snaps target → round) */
   var snapTimer = 0, dragging = false;
@@ -294,7 +214,7 @@
   var dragStartY = 0, dragStartScroll = 0, dragMoved = false;
   if (finePointer) {
     stage.addEventListener("mousedown", function (e) {
-      if (e.button !== 0 || e.target.closest("[data-sf-nocursor], .sf-topbar")) return;
+      if (e.button !== 0 || e.target.closest("[data-sf-nocursor]")) return;
       dragging = true; dragMoved = false;
       dragStartY = e.clientY;
       dragStartScroll = window.pageYOffset;
@@ -320,11 +240,11 @@
   /* Click: top/bottom hitboxes go prev/next, the centred frame opens the film */
   stage.addEventListener("click", function (e) {
     if (dragMoved) { dragMoved = false; return; }
-    if (e.target.closest("[data-sf-nocursor], .sf-topbar")) return;
+    if (e.target.closest("[data-sf-nocursor]")) return;
     var hit = e.target.closest("[data-sf-hit]");
     if (hit) { scrollToFilm(active + (hit.getAttribute("data-sf-hit") === "next" ? 1 : -1)); return; }
     var y = e.clientY - stage.getBoundingClientRect().top;
-    if (Math.abs(y - stageH / 2) < imgBox.h / 2) window.location.href = detailUrl(films[active]);
+    if (Math.abs(y - stageH / 2) < imgBox.h / 2) window.location.href = DS.projectUrl(films[active]);
   });
 
   /* ---------- EXPLORE cursor ---------- */
@@ -333,7 +253,7 @@
     window.addEventListener("pointermove", function (e) {
       mx = e.clientX; my = e.clientY;
       var inStage = stage.contains(e.target);
-      var hide = !inStage || !!e.target.closest("[data-sf-nocursor], .sf-topbar");
+      var hide = !inStage || !!e.target.closest("[data-sf-nocursor]");
       var hit = e.target.closest("[data-sf-hit]");
       cursor.classList.toggle("is-on", inStage);
       cursor.classList.toggle("is-hide", hide);
@@ -438,13 +358,13 @@
   }
 
   function newTexture() {
-    var t = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, t);
+    var tx = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tx);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    return t;
+    return tx;
   }
 
   function loadTexture(src, done) {
@@ -453,10 +373,10 @@
     im.onload = function () {
       if (!gl) return;
       try {
-        var t = newTexture();
+        var tx = newTexture();
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im);
-        done({ tex: t, aspect: [im.naturalWidth, im.naturalHeight] });
+        done({ tex: tx, aspect: [im.naturalWidth, im.naturalHeight] });
       } catch (err) {
         disableGL(); // tainted image (file://) — use the DOM frames instead
       }
@@ -498,8 +418,8 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
       root.classList.add("sf-gl");
-      loadTexture(MASK_ATLAS, function (t) { maskTex = t.tex; });
-      films.forEach(function (f, i) { loadTexture(f.poster, function (t) { texs[i] = t; }); });
+      loadTexture(MASK_ATLAS, function (tx) { maskTex = tx.tex; });
+      films.forEach(function (f, i) { loadTexture((f.featured && f.featured.backdrop) || f.poster, function (tx) { texs[i] = tx; }); });
     } catch (err) {
       disableGL();
     }
@@ -532,16 +452,16 @@
 
       var spacing = imgBox.h + marginH / 2;
       for (var i = 0; i < N; i++) {
-        var t = texs[i];
+        var tx = texs[i];
         var o = offsets[i];
-        if (!t || Math.abs(o) > 1.6) continue;
+        if (!tx || Math.abs(o) > 1.6) continue;
         var cyPx = stageH / 2 + o * spacing;
         gl.uniform4f(progImg.u.u_rect, imgBox.x * dpr, cyPx * dpr, imgBox.w * dpr, imgBox.h * dpr);
         gl.uniform2f(progImg.u.u_resolution, imgBox.w, imgBox.h);
-        gl.uniform2f(progImg.u.u_diff_aspect, t.aspect[0], t.aspect[1]);
+        gl.uniform2f(progImg.u.u_diff_aspect, tx.aspect[0], tx.aspect[1]);
         gl.uniform1f(progImg.u.u_a_parallax, o);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, t.tex);
+        gl.bindTexture(gl.TEXTURE_2D, tx.tex);
         drawQuad(progImg);
       }
       gl.disable(gl.BLEND);
@@ -587,7 +507,7 @@
       items[active].setAttribute("aria-hidden", "true");
       items[idx].removeAttribute("aria-hidden");
       active = idx;
-      updateTicket(active);
+      if (inView) DS.setTicket(films[active]);
     }
   }
 
@@ -618,6 +538,13 @@
   window.addEventListener("resize", function () {
     cancelAnimationFrame(rAf);
     rAf = requestAnimationFrame(measure);
+  });
+
+  document.addEventListener("ds:lang", function () {
+    renderItems();
+    items[active].removeAttribute("aria-hidden");
+    items.forEach(function (el, i) { if (i !== active) el.setAttribute("aria-hidden", "true"); });
+    updatePositions();
   });
 
   initGL();

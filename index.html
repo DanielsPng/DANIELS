@@ -1,91 +1,79 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>DANIELS® — Creative · Audiovisual · Storytelling</title>
-  <meta name="description" content="DANIELS® is a Brazilian creative working across film, editing, design and art direction. Stories in motion — transforming ideas into visual experiences.">
-  <meta name="theme-color" content="#111111">
+  <title>DANIELS® — Direção · Audiovisual · Narrativa</title>
+  <meta name="description" content="DANIELS® é um criativo brasileiro a caminho da direção de cinema — filmes, edição, design e direção de arte.">
+  <meta name="theme-color" content="#0b0b0b">
   <meta name="color-scheme" content="dark">
 
   <!-- Social sharing -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="DANIELS®">
   <meta property="og:title" content="DANIELS® — Stories in motion.">
-  <meta property="og:description" content="Creative · Audiovisual · Storytelling. Film, editing, design and art direction.">
-  <meta property="og:image" content="assets/img/og-image.jpg">
+  <meta property="og:description" content="Direction · Audiovisual · Storytelling. Films, editing, design and art direction.">
+  <meta property="og:url" content="https://danielspng.github.io/DANIELS/">
+  <meta property="og:image" content="https://danielspng.github.io/DANIELS/assets/img/og-image.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="DANIELS® — Stories in motion.">
-  <meta name="twitter:description" content="Creative · Audiovisual · Storytelling.">
-  <meta name="twitter:image" content="assets/img/og-image.jpg">
+  <meta name="twitter:image" content="https://danielspng.github.io/DANIELS/assets/img/og-image.jpg">
+  <link rel="alternate" hreflang="pt-BR" href="https://danielspng.github.io/DANIELS/?lang=pt">
+  <link rel="alternate" hreflang="en" href="https://danielspng.github.io/DANIELS/?lang=en">
 
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preload" as="image" href="assets/img/hero-still.jpg" fetchpriority="high">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..700&family=Cinzel:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..700&display=swap">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/featured.css">
 </head>
-<body class="page-home">
-  <a class="skip-link" href="#main">Skip to content</a>
+<body class="page-home" data-home>
+  <a class="skip-link" href="#main" data-i18n="skip">Pular para o conteúdo</a>
 
-  <!-- 01 — HEADER -->
-  <header class="site-header" data-header>
-    <div class="site-header__inner">
-      <a class="wordmark" href="#top" aria-label="DANIELS — back to top">DANIELS<sup>®</sup></a>
-
-      <nav class="nav" aria-label="Primary">
-        <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="nav-list" data-nav-toggle>
-          <span class="nav__toggle-label">Menu</span>
-        </button>
-        <ul class="nav__list" id="nav-list" data-nav-list>
-          <li><a href="#featured">Films</a></li>
-          <li><a href="#work">Work</a></li>
-          <li><a href="#about">About</a></li>
-          <li><a href="#arturus">Arturus</a></li>
-          <li><a href="#contact">Contact</a></li>
-        </ul>
-      </nav>
-    </div>
-  </header>
+  <header class="hd" data-header></header>
 
   <main id="main">
 
-    <!-- 02 — HERO -->
+    <!-- 01 — OPENING TITLE -->
     <section class="hero" id="top" aria-labelledby="hero-title" data-hero>
       <div class="hero__media" data-hero-media>
         <img class="hero__poster" src="assets/img/hero-still.jpg" alt="" width="1376" height="768" fetchpriority="high" decoding="async" data-hero-poster>
-        <!-- The <video> is injected by main.js only when a source is configured in js/data.js -->
       </div>
       <div class="hero__shade" aria-hidden="true"></div>
+      <div class="hero__bar hero__bar--top" aria-hidden="true"></div>
+      <div class="hero__bar hero__bar--bottom" aria-hidden="true"></div>
+
+      <div class="hero__slate" aria-hidden="true">
+        <span data-hero-scene></span>
+        <span class="hero__tc"><i class="hero__rec"></i><span data-hero-tc>00:00:00:00</span></span>
+      </div>
 
       <div class="hero__content">
-        <p class="eyebrow hero__label">Creative · Audiovisual · Storytelling</p>
+        <p class="hero__kicker" data-i18n="hero.kicker">Um filme de</p>
         <h1 class="hero__title" id="hero-title">DANIELS<sup>®</sup></h1>
         <div class="hero__foot">
           <div class="hero__copy">
-            <p class="hero__headline">Stories in motion.</p>
-            <p class="hero__desc">Transforming ideas into visual experiences.</p>
+            <p class="hero__tag" data-i18n="hero.tag">Histórias em movimento.</p>
+            <p class="hero__sub" data-i18n="hero.sub">Criativo audiovisual a caminho da direção de cinema.</p>
           </div>
-          <a class="hero__cta textlink" href="#featured">Explore my work <span aria-hidden="true">↓</span></a>
+          <div class="hero__ctas">
+            <a class="btn btn--solid" href="#films"><span data-i18n="hero.cta">Ver filmes</span> <span aria-hidden="true">↓</span></a>
+            <a class="btn" href="#contact" data-i18n="hero.cta2">Fale comigo</a>
+          </div>
         </div>
       </div>
 
-      <p class="hero__caption" data-hero-caption></p>
-      <button class="hero__playback" type="button" hidden data-hero-playback aria-label="Pause background video">Pause</button>
+      <button class="hero__playback" type="button" hidden data-hero-playback></button>
     </section>
 
-    <!-- 02.5 — FEATURED FILMS (CINEMATIC FILM REEL — VERTICAL SCROLL) -->
-    <section class="sf-reel" id="featured" data-sf aria-label="Featured Films">
+    <!-- 02 — FILMS (siena-style roll) -->
+    <section class="sf-reel" id="films" data-sf data-i18n-aria="nav.films" aria-label="Filmes">
       <div class="sf-stage" data-sf-stage>
-        <!-- WebGL frames + film post-processing (js/featured.js) -->
         <canvas class="sf-canvas" data-sf-canvas aria-hidden="true"></canvas>
-
-        <!-- Looping film roll (DOM overlay: titles, specs, reviews) -->
         <div class="sf-roll" data-sf-roll></div>
 
         <div class="sf-grad" aria-hidden="true"></div>
@@ -93,108 +81,93 @@
         <div class="sf-hit sf-hit--prev" data-sf-hit="prev" aria-hidden="true"></div>
         <div class="sf-hit sf-hit--next" data-sf-hit="next" aria-hidden="true"></div>
 
-        <!-- Top bar: wordmark & ticket nav -->
-        <div class="sf-topbar">
-          <a class="sf__logo" href="#top">DANIELS<sup>®</sup><small>CREATIVE · AUDIOVISUAL</small></a>
-          <div class="sf-tk" data-sf-ticket></div>
-        </div>
-
-        <!-- EXPLORE cursor -->
         <div class="sf-cursor" data-sf-cursor aria-hidden="true">
           <div class="sf-cursor__w">
             <span class="sf-cursor__arrow sf-cursor__arrow--up"><svg viewBox="0 0 35 23"><path d="M2 21 17.5 3 33 21" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>
             <span class="sf-cursor__circle"></span>
-            <span class="sf-cursor__tx"><span>EXPLORE</span></span>
+            <span class="sf-cursor__tx"><span data-i18n="films.explore">Explorar</span></span>
             <span class="sf-cursor__arrow sf-cursor__arrow--down"><svg viewBox="0 0 35 23"><path d="M2 21 17.5 3 33 21" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 03 — SELECTED WORK -->
+    <!-- 03 — IN DEVELOPMENT -->
+    <section class="section dev" id="development" aria-labelledby="dev-title">
+      <div class="container">
+        <header class="shead" data-reveal>
+          <p class="shead__k"><span class="shead__n">03</span><span data-i18n="dev.kicker">Em desenvolvimento</span></p>
+          <h2 class="shead__title" id="dev-title" data-i18n-html="dev.title">Próximas <em>cenas.</em></h2>
+          <p class="shead__intro" data-i18n="dev.intro"></p>
+        </header>
+        <ol class="dev__list" data-dev-list></ol>
+      </div>
+    </section>
+
+    <!-- 04 — WORK -->
     <section class="section work" id="work" aria-labelledby="work-title">
       <div class="container">
-        <header class="section-head">
-          <p class="eyebrow section-head__label">Selected work</p>
-          <div class="section-head__main">
-            <h2 class="section-head__title" id="work-title">Selected works.</h2>
-            <p class="section-head__intro">Films, visual concepts, and creative projects built around different ideas and perspectives.</p>
-          </div>
+        <header class="shead" data-reveal>
+          <p class="shead__k"><span class="shead__n">04</span><span data-i18n="work.kicker">Trabalhos</span></p>
+          <h2 class="shead__title" id="work-title" data-i18n-html="work.title">Trabalhos <em>selecionados.</em></h2>
+          <p class="shead__intro" data-i18n="work.intro"></p>
+        </header>
+        <div class="filters" data-filters role="group"></div>
+        <ol class="grid" data-work-grid></ol>
+        <noscript><p class="noscript">Enable JavaScript to view the gallery.</p></noscript>
+      </div>
+    </section>
+
+    <!-- 05 — DIRECTOR'S STATEMENT + ARTURUS -->
+    <section class="section st" id="statement" aria-labelledby="st-title" data-paper>
+      <div class="container">
+        <header class="shead" data-reveal>
+          <p class="shead__k"><span class="shead__n">05</span><span data-i18n="st.kicker">Director's statement</span></p>
+          <h2 class="shead__title" id="st-title" data-i18n-html="st.title">Por que eu <em>filmo.</em></h2>
         </header>
 
-        <div class="filters" data-filters hidden></div>
-        <ol class="poster-grid" data-project-grid></ol>
-        <noscript><p class="noscript">Enable JavaScript to view the project gallery.</p></noscript>
+        <div class="st__grid">
+          <figure class="st__portrait" data-portrait data-reveal></figure>
+          <div class="st__body" data-reveal>
+            <p class="st__lead" data-st-lead></p>
+            <div class="st__text" data-st-text></div>
+            <dl class="facts" data-st-facts></dl>
+            <div class="st__influences" data-st-influences></div>
+            <p class="st__cv" data-st-cv></p>
+          </div>
+        </div>
+
+        <article class="ar" data-reveal aria-labelledby="ar-title">
+          <figure class="ar__media" data-ar-media></figure>
+          <div class="ar__body">
+            <p class="shead__k"><span data-i18n="ar.kicker">Produtora</span></p>
+            <h3 class="ar__title" id="ar-title">ARTURUS</h3>
+            <p class="ar__relation" data-i18n="ar.relation"></p>
+            <p class="ar__text" data-ar-text></p>
+            <ul class="ar__links" data-ar-links></ul>
+          </div>
+        </article>
       </div>
     </section>
 
-    <!-- 04 — DESIGN & ART DIRECTION -->
-    <section class="section design" id="design" aria-labelledby="design-title">
+    <!-- 06 — CONTACT -->
+    <section class="section ct" id="contact" aria-labelledby="ct-title">
       <div class="container">
-        <header class="section-head section-head--design">
-          <p class="eyebrow section-head__label">Design &amp; Art Direction</p>
-          <div class="section-head__main">
-            <h2 class="section-head__title design__title" id="design-title">Beyond the <em>frame.</em></h2>
-            <p class="section-head__intro">Posters, visual identities, campaign artwork, layouts and visual experiments — the work that happens around and outside the moving image.</p>
-          </div>
+        <header class="shead shead--wide" data-reveal>
+          <p class="shead__k"><span class="shead__n">06</span><span data-i18n="ct.kicker">Contato</span></p>
+          <h2 class="shead__title ct__title" id="ct-title" data-i18n-html="ct.title">Vamos fazer <em>um filme.</em></h2>
+          <p class="shead__intro" data-i18n="ct.intro"></p>
         </header>
-
-        <div class="design-grid" data-design-grid></div>
-      </div>
-    </section>
-
-    <!-- 05 — ABOUT -->
-    <section class="section about" id="about" aria-labelledby="about-title">
-      <div class="container about__grid">
-        <figure class="about__portrait" data-portrait>
-          <!-- Filled by main.js from SITE.about.portrait -->
-        </figure>
-
-        <div class="about__body">
-          <p class="eyebrow">About Daniels</p>
-          <h2 class="about__title" id="about-title">The person behind the images.</h2>
-
-          <!-- Editable copy — can be translated to Portuguese directly here. -->
-          <div class="about__text">
-            <p>I'm Daniels, a Brazilian designer and audiovisual creative interested in cinema, visual storytelling, and the power of images to communicate ideas and emotions.</p>
-            <p>My work moves between film, editing, design, and art direction. I'm interested in the thinking behind every creative decision — how composition, rhythm, sound, and visual language can turn an idea into a meaningful experience.</p>
-            <p>I'm building my practice around creating and directing audiovisual projects while continuing to explore new visual languages and ways of telling stories.</p>
-          </div>
-
-          <dl class="facts" data-about-facts></dl>
-
-          <ul class="about__links" data-about-links></ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- 06 — ARTURUS -->
-    <section class="arturus" id="arturus" aria-labelledby="arturus-title">
-      <div class="arturus__grid">
-        <div class="arturus__body">
-          <p class="eyebrow arturus__label">Production house · Original projects · Films</p>
-          <h2 class="arturus__title" id="arturus-title">ARTURUS</h2>
-          <p class="arturus__relation">A production company by Daniels.</p>
-          <p class="arturus__text">Arturus is a space for developing audiovisual projects, original films, and creative collaborations. It represents the production side of the work — where ideas become films and visual experiences.</p>
-          <ul class="arturus__links" data-arturus-links></ul>
-        </div>
-        <figure class="arturus__media" data-arturus-media></figure>
-      </div>
-    </section>
-
-    <!-- 07 — CONTACT -->
-    <section class="section contact" id="contact" aria-labelledby="contact-title">
-      <div class="container">
-        <p class="eyebrow">Contact</p>
-        <h2 class="contact__title" id="contact-title">Let's create something <em>meaningful.</em></h2>
-        <p class="contact__intro">Open to creative opportunities, collaborations, and audiovisual projects.</p>
-        <ul class="contact__list" data-contact-list></ul>
+        <div class="ct__main" data-ct-main data-reveal></div>
+        <ul class="ct__list" data-ct-list data-reveal></ul>
       </div>
     </section>
   </main>
 
-  <!-- 08 — FOOTER -->
+  <!-- 07 — END CREDITS -->
   <footer class="site-footer" data-footer></footer>
+
+  <div class="grain" aria-hidden="true"></div>
 
   <script src="js/data.js"></script>
   <script src="js/common.js"></script>
